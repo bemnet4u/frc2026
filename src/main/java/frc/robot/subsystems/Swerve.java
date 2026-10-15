@@ -21,6 +21,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
 
@@ -32,6 +33,7 @@ public class Swerve extends VisionBaseSwerve{
     private Optional<Transform3d> cameraOutputBuffer;
     private int climbTagToUse;
     private Pose2d goalPoseForAuto;
+    private double delta;
 
     private static Swerve instance;
 
@@ -77,11 +79,11 @@ public class Swerve extends VisionBaseSwerve{
 
         // climbCam = new Camera(Constants.AutoAlign.alignConfig);
         x_pid = new PIDController(3, 0, 0);
-        y_pid = new PIDController(0.5, 0, 0);
-        alignRot_pid = new PIDController(0.1, 0, 0);
+        y_pid = new PIDController(0.3, 0, 0);
+        alignRot_pid = new PIDController(0.05, 0, 0);
         x_pid.setTolerance(0.1);
         y_pid.setTolerance(0.2);
-        alignRot_pid.setTolerance(1);
+        alignRot_pid.setTolerance(5);
         cameraOutputBuffer = Optional.empty();
         climbTagToUse = 15; // default red side
         goalPoseForAuto = new Pose2d();
@@ -89,18 +91,54 @@ public class Swerve extends VisionBaseSwerve{
 
 
     public Command GOOOOOOOOOOOOOO() {
-        return run(() -> {driveRobotOriented(new Translation2d(-2,0), 0);});
+        return run(() -> {driveRobotOriented(new Translation2d(5,0), 0);});
+    }
+
+    //DANGER (auto testing)
+    public Command moveSwerve(double x, double y, double rot, double sec) {
+        return run(() -> {driveRobotOriented(new Translation2d(x,y), rot);}).
+        alongWith(new WaitCommand(sec)).
+        andThen(run (() -> {driveRobotOriented(new Translation2d(0, 0), 0);}));
     }
 
     public Command moveSwerveUsingPID(double x, double y, double rot) {
-        return runOnce(() -> {x_pid.setSetpoint(field.getRobotPose().getX()+x); y_pid.setSetpoint(field.getRobotPose().getY()+y); alignRot_pid.setSetpoint(field.getRobotPose().getRotation().getDegrees() + rot);}).
-        andThen(run(() -> {driveRobotOriented(new Translation2d(x_pid.calculate(field.getRobotPose().getX()), 
-                                                         y_pid.calculate(field.getRobotPose().getY())),
-                                                         -alignRot_pid.calculate(field.getRobotPose().getRotation().getDegrees())
-                                                         );})).
+        return runOnce(() -> {x_pid.setSetpoint(field.getRobotPose().getX()+x); y_pid.setSetpoint(field.getRobotPose().getY()+y); alignRot_pid.setSetpoint(field.getRobotPose().getRotation().getDegrees() + rot);}).//180 wrapping messes up the setpoint?
+        andThen(run(() -> {driveRobotOriented(new Translation2d(x_pid.calculate(field.getRobotPose().getX()), y_pid.calculate(field.getRobotPose().getY())),
+            alignRot_pid.calculate(field.getRobotPose().getRotation().getDegrees())
+            );})).
         until(() -> {return x_pid.atSetpoint() && y_pid.atSetpoint() && alignRot_pid.atSetpoint();}).
         andThen(() -> {driveRobotOriented(new Translation2d(0, 0), 0); x_pid.reset(); y_pid.reset(); alignRot_pid.reset();});
     }
+
+    public Command moveSwerveUsingPID(double x, double y) {
+        return runOnce(() -> {x_pid.setSetpoint(field.getRobotPose().getX()+x); y_pid.setSetpoint(field.getRobotPose().getY()+y);}).//180 wrapping messes up the setpoint?
+        andThen(run(() -> {driveRobotOriented(new Translation2d(x_pid.calculate(field.getRobotPose().getX()), y_pid.calculate(field.getRobotPose().getY())),0);})).
+        until(() -> {return x_pid.atSetpoint() && y_pid.atSetpoint();}).
+        andThen(() -> {driveRobotOriented(new Translation2d(0, 0), 0); x_pid.reset(); y_pid.reset(); alignRot_pid.reset();});
+    }
+
+    public Command directionTest(double rot) {
+        return runOnce(() -> {
+            alignRot_pid.setSetpoint((field.getRobotPose().getRotation().getDegrees() + rot));
+        }).andThen(run(() -> {driveRobotOriented(new Translation2d(0, 0), -alignRot_pid.calculate(field.getRobotPose().getRotation().getDegrees()));})).until(() -> alignRot_pid.atSetpoint());
+    }
+
+    double cc;
+    double cw;
+    public boolean getShorterRot(double currentRot, double targetRot) {
+        currentRot = (currentRot < 180) ? currentRot : (180+(180-Math.abs(currentRot)));
+        targetRot = (targetRot < 180) ? targetRot : (180+(180-Math.abs(targetRot)));
+        cc = (targetRot >= currentRot) ? (targetRot-currentRot) : (360-currentRot+targetRot);
+        cw = (targetRot <= currentRot) ? (currentRot-targetRot) : (currentRot+(360-targetRot));
+        return (cc < cw) ? true : false;
+    }
+
+    // public double updateDelta(double displacement) {
+    //     double start = (field.getRobotPose().getRotation().getDegrees() > 0) ? field.getRobotPose().getRotation().getDegrees() : 180 + (180 - Math.abs(field.getRobotPose().getRotation().getDegrees()));
+    //     double end = (field.getRobotPose().getRotation().getDegrees() + displacement > 0) ? (field.getRobotPose().getRotation().getDegrees() + displacement)%360 : (displacement+ 180 + (180 - Math.abs(field.getRobotPose().getRotation().getDegrees())))%360;
+    //     double delta = ((end - start + 180)%360) - 180;
+    //     return delta;
+    // }
 
     public Command moveSwerveUsingPIDY(double y) {
         return runOnce(() -> {y_pid.setSetpoint(field.getRobotPose().getY()+y);}).
@@ -160,5 +198,15 @@ public class Swerve extends VisionBaseSwerve{
         // if (rawCameraOutput.isPresent()) {
         //     cameraOutputBuffer = rawCameraOutput;
         // }
+        SmartDashboard.putNumber("ROT SP", alignRot_pid.getSetpoint());
+        SmartDashboard.putNumber("ROT", field.getRobotPose().getRotation().getDegrees());
+        SmartDashboard.putBoolean("ROT AT SP", alignRot_pid.atSetpoint());
+        SmartDashboard.putNumber("ROT ERROR", alignRot_pid.getError());
+        SmartDashboard.putBoolean("ROT DIR", getShorterRot(field.getRobotPose().getRotation().getDegrees(), alignRot_pid.getSetpoint()));
+        SmartDashboard.putNumber("PID", alignRot_pid.getP());
+        SmartDashboard.putNumber("cw", cw);
+        SmartDashboard.putNumber("cc", cc);
+
+
     }
 }

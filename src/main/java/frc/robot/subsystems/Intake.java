@@ -9,7 +9,6 @@ import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import poplib.subsystems.pivot.TalonPivot;
 
@@ -38,12 +37,12 @@ public class Intake extends TalonPivot {
             Constants.Intake.TUNING_MODE, 
             "Intake"
         );
-        leadSpinMotor = Constants.Intake.MOTOR_CONFIG.createTalon();
-        followerMotor = Constants.Intake.FOLLOWER_CONFIG.createTalon();
-        super.leadMotor.setPosition(0);
+        leadSpinMotor = Constants.Intake.MOTOR_CONFIG.createTalon();      //roller
+        followerMotor = Constants.Intake.FOLLOWER_CONFIG.createTalon();   //roller
+        super.leadMotor.setPosition(0);    //pivot
         limitSwitchKinda = new CANdi(23, "hi");
         DOWN = Constants.Intake.DOWN/360.0;
-        timer = 75;
+        timer = 75; //failsafe for intake incase limit switch no work
     }
 
     public Command dropDozer() {
@@ -82,11 +81,11 @@ public class Intake extends TalonPivot {
         andThen(runOnce(() -> {usePID = true;}));
     }
 
-    public Command upIntake() {
+    public Command upIntake() { //for wiggle
         return runOnce(() -> {usePID = true; setpoint.setDefault(DOWN-7);});
     }
 
-    public Command downIntake() {
+    public Command downIntake() { //for wiggle
         return runOnce(() -> setpoint.setDefault(DOWN));
     }
 
@@ -102,7 +101,7 @@ public class Intake extends TalonPivot {
         return runOnce(() -> setpoint.setDefault(DOWN - 1));
     }
 
-    public Command revSpin() {
+    public Command reverseSpin() {
         return runOnce(() -> leadSpinMotor.set(-Constants.Intake.SPEED));
     }
 

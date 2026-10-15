@@ -39,7 +39,6 @@ public class TalonPivot extends Pivot {
         pid = new PIDTuning(subsystemName, PIDConfig.getZeroPid(), tuningMode);
         position = new PositionDutyCycle(0.0);
         position.withSlot(leadMotor.getClosedLoopSlot().getValue());
-
     }
 
     public TalonPivot(MotorConfig leadConfig, int limitSwitchID, double gearRatio, FFConfig ffConfig, boolean tuningMode, String subsystemName) {

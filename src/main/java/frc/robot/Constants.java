@@ -33,7 +33,7 @@ public final class Constants {
 
     public static class Swerve {
         static final SDSModules MODULE_TYPE = SDSModules.MK4nL2;
-        static final boolean TUNING_MODE = true;
+        static final boolean TUNING_MODE = false;
         static final int SWERVE_CAN_ID_OFFSET = 5;      
 
         static final MotorConfig DRIVE_CONFIG = new MotorConfig(swerveLoop, 60, false, PIDConfig.getPid(0.01, 0.25), Mode.BRAKE);
@@ -73,7 +73,7 @@ public final class Constants {
         public static final boolean TUNING_MODE = false;
         public static final MotorConfig PIVOT_CONFIG = new MotorConfig(22, "hi", 30, false, new PIDConfig(0.05, 0.0, 0.0), Mode.BRAKE);
         // public static final MotorConfig INTAKE_GUIDE_MOTOR = new MotorConfig(23, "hi", 25, false, Mode.COAST);
-        public static final double DOWN = 11*360.0;
+        public static final double DOWN = 15*360.0;
         public static final FFConfig FF = new FFConfig(0.0);
     }
 

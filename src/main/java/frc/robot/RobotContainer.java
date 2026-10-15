@@ -6,6 +6,7 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.commands.PathPlannerAuto;
 
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -30,6 +31,7 @@ import frc.robot.utils.ClimbState;
 import frc.robot.utils.StateMachine;
 import poplib.controllers.io.XboxIO;
 import poplib.math.MathUtil;
+import poplib.smart_dashboard.TunableNumber;
 import poplib.swerve.commands.TeleopSwerveDrive;
 
 
@@ -47,13 +49,13 @@ public class RobotContainer {
     private final SendableChooser<Command> autoChooser;
     public static double f = ScoringSetpoints.HUB.getFlywheel();
     public static double p = ScoringSetpoints.HUB.getPivot();
-
-
+    public TunableNumber rot;
 
     public RobotContainer() {
         autoChooser = new SendableChooser<>();
+        AutoBuilder.buildAutoChooser();
         autoChooser.addOption("Right Shoot", 
-        shootRight().alongWith(new WaitCommand(10)).andThen(stopShooting())); 
+        shootRight().alongWith(new WaitCommand(10)).andThen(stopShooting()));
 
         autoChooser.addOption("Right Shoot + Exit", 
         shootRight().alongWith(new WaitCommand(10)).andThen(stopShooting()).andThen(swerve.moveSwerveUsingPID(0.0, -2, 0))); 
@@ -65,15 +67,39 @@ public class RobotContainer {
         andThen(shootRight()).alongWith(new WaitCommand(4)).andThen(stopShooting()));   // 3.8608
 
         autoChooser.addOption("Center Shoot and Move", 
-        
-        swerve.moveSwerveUsingPID(-1, 0, 0).
-        andThen(shootCenterInAuto()).alongWith(new WaitCommand(6)).andThen(stopShooting()).
-        andThen(swerve.moveSwerveUsingPID(1, 0, 0)));
+        swerve.moveSwerveUsingPID(-1, 0).
+        andThen(intake.runIntake()).
+        andThen(shootCenterInAuto()).alongWith(new WaitCommand(7)).andThen(stopShooting()).
+        andThen(intake.stopIntake()).
+        andThen(swerve.moveSwerveUsingPID(1, 0)));
 
-        autoChooser.addOption("GOOOOOOOO", swerve.GOOOOOOOOOOOOOO());
-
+        autoChooser.addOption("test center", 
+        swerve.moveSwerve(-1, 0, 0, 0.2)
+        );
 
         autoChooser.addOption("Dont Shoot", null);
+
+        // autoChooser.addOption("use this one", intake.runIntake().
+        // alongWith(intake.runSpin()).
+        // andThen(swerve.moveSwerveUsingPID(0, 3.81)).
+        // andThen(swerve.moveSwerveUsingPID(2.54, 0)).
+        // andThen(swerve.moveSwerveUsingPID(-2.286, 0)).
+        // andThen(swerve.moveSwerveUsingPID(0, 0, 180)).
+        // andThen(swerve.moveSwerveUsingPID(0, -3.5052)).
+        // alongWith(pivot.moveWrist(0.5*360, 0.5)).
+        // andThen(flywheel.updateSetpointCommand(75, 1)).
+        // andThen(indexer.runHandoff()).
+        // andThen(new WaitCommand(1)).
+        // andThen(indexer.runSpindexer()));
+
+        //For auto testing DO NOT use in comp
+        // autoChooser.addOption("90", swerve.moveSwerveUsingPID(0, 0, 90));
+        // autoChooser.addOption("180", swerve.moveSwerveUsingPID(0, 0, 180));
+        // autoChooser.addOption("270", swerve.moveSwerveUsingPID(0, 0, -90));
+        // // autoChooser.addOption("rot test", swerve.moveSwerveUsingPID(0, 0, rot.get()));
+        // autoChooser.addOption("drive", swerve.moveSwerveUsingPID(0, 0, 180).
+        // andThen(swerve.moveSwerveUsingPID(0, 2, 0)));
+        // autoChooser.addOption("Test", swerve.directionTest(-90));
 
         swerve.setDefaultCommand(new TeleopSwerveDrive(swerve, controller));
         // NamedCommands.registerCommand("Extend To L1", extendToL1());
@@ -84,15 +110,16 @@ public class RobotContainer {
         // NamedCommands.registerCommand("Zero Turret", turret.reZero());
         SmartDashboard.putData("Auto Chooser", autoChooser);
 
+
         configureBindings();
     }
 
     private void configureBindings() {
         controller.getDriverTrigger(XboxController.Axis.kRightTrigger.value).onTrue(shootCenter()).onFalse(stopShooting());
-        controller.getDriverTrigger(XboxController.Axis.kLeftTrigger.value).onTrue(shootPass()).onFalse(stopShooting());
+        controller.getDriverTrigger(XboxController.Axis.kLeftTrigger.value).onTrue(shootFar()).onFalse(stopShooting());
         controller.getDriverButton(XboxController.Button.kX.value).onTrue(shootRight()).onFalse(stopShooting());
         controller.getDriverButton(XboxController.Button.kY.value).onTrue(intake.upIntake()).onFalse(intake.downIntake());
-        controller.getDriverButton(XboxController.Button.kB.value).onTrue(indexer.reverseHandoff().andThen(indexer.reverseSpindexer())).onFalse(indexer.stopHandoff().andThen(indexer.stopSpindexer()));
+        // controller.getDriverButton(XboxController.Button.kB.value).onTrue(indexer.reverseHandoff().andThen(indexer.reverseSpindexer())).onFalse(indexer.stopHandoff().andThen(indexer.stopSpindexer()));
         controller.getDriverButton(XboxController.Button.kRightBumper.value).onTrue(intake());
         controller.getDriverButton(XboxController.Button.kLeftBumper.value).onTrue(stopIntaking());
 
@@ -100,7 +127,7 @@ public class RobotContainer {
         controller.getDriverButton(XboxController.Button.kStart.value).onTrue(swerve.resetGyroCommand());
         controller.getDriverController().povUp().onTrue(intake.runSpin());
         controller.getDriverController().povDown().onTrue(intake.stopSpin());
-        controller.getDriverController().povLeft().onTrue(intake.revSpin()).onFalse(intake.stopSpin());
+        controller.getDriverController().povLeft().onTrue(intake.reverseSpin()).onFalse(intake.stopSpin());
         controller.getDriverController().povRight().onTrue(intake.uppies());
         // controller.getOperatorTrigger(XboxController.Axis.kRightTrigger.value).onTrue(flywheel.updateSetpointCommand(100)).onFalse(flywheel.updateSetpointCommand(0));
         // controller.getOperatorTrigger(XboxController.Axis.kLeftTrigger.value).onTrue(flywheel.updateSetpointCommand(-100)).onFalse(flywheel.updateSetpointCommand(0));
@@ -130,18 +157,45 @@ public class RobotContainer {
         return autoChooser.getSelected();
     }
 
+    public Command testCommand() {
+        // return (intake()).
+        // andThen(intake.runSpin()).
+        // alongWith(new WaitCommand(2)).
+        // andThen(intake.reverseSpin()).
+        // alongWith(new WaitCommand(2)).
+        // andThen(intake.stopIntake()).
+        // andThen(indexer.runSpindexer()).
+        // alongWith(indexer.runHandoff()).
+        // alongWith(new WaitCommand(3)).
+        // andThen(indexer.stopSpindexer()).
+        // alongWith(indexer.stopHandoff()).
+        // andThen(shootFar()).
+        // alongWith(new WaitCommand(3))
+        // .andThen(stopShooting());
+
+        return (indexer.runSpindexer());
+    }
+
     public Command shootCenter() {
         // An example command will be run in autonomous
-        return pivot.moveWrist(0.5*360, 0.5).
-        alongWith(flywheel.updateSetpointCommand(65, 1)).
+        return pivot.moveWrist(0.4*360, 0.5). //0.5*360 before
+        alongWith(flywheel.updateSetpointCommand(80, 1)). //65 before
         andThen(indexer.runHandoff()).
         andThen(new WaitCommand(0.5)).
         andThen(indexer.runSpindexer());
     }
 
     public Command shootPass() {
-        return pivot.moveWrist(3*360, 0.5).
-        alongWith(flywheel.updateSetpointCommand(105, 15)).
+        return pivot.moveWrist(0*360, 0.5).
+        alongWith(flywheel.updateSetpointCommand(30, 15)).
+        alongWith(indexer.runHandoff()).
+        andThen(new WaitCommand(0.5)).
+        andThen(indexer.runSpindexer());
+    }
+
+    public Command shootFar() {
+        return pivot.moveWrist(0.6*360, 0.5).
+        alongWith(flywheel.updateSetpointCommand(45, 15)).
         alongWith(indexer.runHandoff()).
         andThen(new WaitCommand(0.5)).
         andThen(indexer.runSpindexer());
@@ -156,9 +210,24 @@ public class RobotContainer {
     
     public Command shootRight() {
         return pivot.moveWrist(0.5*360, 0.5).
-        alongWith(flywheel.updateSetpointCommand(64, 1)).
+        alongWith(flywheel.updateSetpointCommand(72, 1)). //prev 64
         alongWith(indexer.runHandoff()).
         andThen(new WaitCommand(0.5)).
+        andThen(indexer.runSpindexer());
+    }
+
+    public Command bordieAutoRight() {
+        return intake.runIntake().
+        alongWith(intake.runSpin()).
+        andThen(swerve.moveSwerveUsingPID(0, 3.81)).
+        andThen(swerve.moveSwerveUsingPID(2.54, 0)).
+        andThen(swerve.moveSwerveUsingPID(-2.286, 0)).
+        andThen(swerve.moveSwerveUsingPID(0, 0, 180)).
+        andThen(swerve.moveSwerveUsingPID(0, -3.5052)).
+        alongWith(pivot.moveWrist(0.5*360, 0.5)).
+        andThen(flywheel.updateSetpointCommand(75, 1)).
+        andThen(indexer.runHandoff()).
+        andThen(new WaitCommand(1)).
         andThen(indexer.runSpindexer());
     }
 
