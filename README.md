@@ -65,11 +65,11 @@ Every loop, no matter the mode, `robotPeriodic()` runs the **command scheduler**
 
 ```mermaid
 flowchart LR
-    Main["Main.java<br/>program entry"] --> Robot["Robot.java<br/>match lifecycle"]
-    Robot -->|creates once| Container["RobotContainer.java<br/>wiring: buttons + subsystems"]
-    Robot -->|every ~20 ms| Scheduler["Command scheduler"]
-    Container --> Subsystems["Drive, intake, indexer,<br/>pivot, flywheel"]
-    Container --> Buttons["Xbox driver + operator"]
+    Main[Main.java] --> Robot[Robot.java]
+    Robot -->|creates once| Container[RobotContainer.java]
+    Robot -->|every 20 ms| Scheduler[Command scheduler]
+    Container --> Subsystems[Drive intake indexer pivot flywheel]
+    Container --> Buttons[Xbox driver and operator]
     Buttons -->|press starts a command| Scheduler
     Scheduler --> Subsystems
 ```
@@ -112,27 +112,7 @@ Two Java packages matter:
 ### Class map
 
 ```mermaid
-classDiagram
-    class Robot {
-        starts the match loop
-    }
-    class RobotContainer {
-        buttons, autos, shoot recipes
-    }
-    class Constants {
-        IDs, speeds, angles
-    }
-    class StateMachine {
-        current score mode and flags
-    }
-    class Swerve
-    class Intake
-    class Indexer
-    class Pivot
-    class Flywheel
-    class Turret
-    class Climb
-
+flowchart TB
     Robot --> RobotContainer
     RobotContainer --> Swerve
     RobotContainer --> Intake
@@ -141,12 +121,12 @@ classDiagram
     RobotContainer --> Flywheel
     RobotContainer --> StateMachine
     StateMachine --> Constants
-    Swerve --> VisionBaseSwerve : poplib drive base
-    Intake --> TalonPivot : poplib position motor
+    Swerve --> VisionBaseSwerve
+    Intake --> TalonPivot
     Pivot --> TalonPivot
     Turret --> TalonPivot
     Climb --> TalonPivot
-    Flywheel --> TalonFlywheel : poplib velocity motors
+    Flywheel --> TalonFlywheel
 ```
 
 **Inheritance in one sentence:** `Intake`, `Pivot`, `Turret`, and `Climb` all reuse the same “move this joint to an angle” helper (`TalonPivot` in poplib). `Flywheel` reuses “spin these wheels at a speed.” `Swerve` reuses the team’s drivetrain stack.
@@ -251,23 +231,19 @@ The driver picks the recipe with **Y (hub)** or **A (pass)**. That writes `State
 ### Live shoot sequence
 
 ```mermaid
-sequenceDiagram
-    participant Driver
-    participant Code as RobotContainer
-    participant Pivot
-    participant Flywheel
-    participant Indexer
-
-    Driver->>Code: hold right trigger
-    Code->>Pivot: tilt to recipe angle
-    Code->>Flywheel: spin to recipe speed
-    Code->>Indexer: start handoff
-    Note over Pivot,Flywheel: wait 0.5 s for wheels to speed up
-    Code->>Indexer: start spindexer feed
-    Driver->>Code: release trigger
-    Code->>Pivot: return to 0
-    Code->>Flywheel: stop
-    Code->>Indexer: stop both motors
+flowchart TD
+    A[Driver holds right trigger] --> B[RobotContainer runs shoot]
+    B --> C[Pivot tilts to recipe angle]
+    B --> D[Flywheel spins to recipe speed]
+    B --> E[Indexer starts handoff]
+    C --> F[Wait 0.5 seconds for spin-up]
+    D --> F
+    E --> F
+    F --> G[Indexer starts spindexer feed]
+    G --> H[Driver releases trigger]
+    H --> I[Pivot returns to 0]
+    H --> J[Flywheel stops]
+    H --> K[Indexer stops both motors]
 ```
 
 | Control | What the code runs |
@@ -313,66 +289,32 @@ A single shared object. Names are for humans; nothing automatically transitions 
 
 Read this as: **people → RobotContainer → mechanisms → wires → field tools**.
 
-Dotted lines = code exists, but `RobotContainer` is not constructing or scheduling it right now.
+Turret, Climb, and AutoAimMath exist in code, but `RobotContainer` is not constructing or scheduling them right now.
 
 ```mermaid
 flowchart TB
-    subgraph People
-        D[Driver Xbox USB 0]
-        O[Operator Xbox USB 1]
-    end
-
-    subgraph Software["This program on the roboRIO"]
-        RC[RobotContainer]
-        SM[StateMachine]
-        HT[HubTracker]
-        AM[AutoAimMath]
-        C[Constants]
-    end
-
-    subgraph Mechanisms
-        SW[Swerve + gyro]
-        IN[Intake dozer]
-        IX[Indexer]
-        PV[Pivot]
-        FW[Flywheel]
-        TU[Turret]
-        CL[Climb]
-    end
-
-    subgraph Wires
-        CAN["cantBUS CAN - drive / intake / climb"]
-        RIO["rio CAN + DIO - shooter"]
-    end
-
-    subgraph FieldTools
-        DS[DriverStation / FMS]
-        PP[PathPlanner autos]
-        SD[SmartDashboard]
-    end
-
-    D --> RC
-    O --> RC
-    RC --> SM
-    RC --> SW
-    RC --> IN
-    RC --> IX
-    RC --> PV
-    RC --> FW
-    SM --> C
-    AM -.-> PV
-    AM -.-> TU
-    HT --> DS
-    SW --> PP
-    SW --> CAN
+    Driver[Driver Xbox] --> RC[RobotContainer]
+    Operator[Operator Xbox] --> RC
+    RC --> SM[StateMachine]
+    RC --> SW[Swerve]
+    RC --> IN[Intake]
+    RC --> IX[Indexer]
+    RC --> PV[Pivot]
+    RC --> FW[Flywheel]
+    SM --> Constants
+    AM[AutoAimMath] --> PV
+    AM --> TU[Turret]
+    HT[HubTracker] --> DS[DriverStation]
+    SW --> PP[PathPlanner]
+    SW --> CAN[cantBUS]
     IN --> CAN
     IX --> CAN
-    IX --> RIO
+    IX --> RIO[rio bus]
     PV --> RIO
     FW --> RIO
-    TU -.-> RIO
-    CL -.-> CAN
-    RC --> SD
+    TU --> RIO
+    CL[Climb] --> CAN
+    RC --> SD[SmartDashboard]
 ```
 
 ### Device IDs
